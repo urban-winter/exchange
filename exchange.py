@@ -34,10 +34,11 @@ class Exchange(object):
             for sell_order in self._sell_order_book:
                 if buy_order.quantity == sell_order.quantity:
                     trades.append(Trade(buy=buy_order, sell=sell_order))
+                    self._sell_order_book.remove(sell_order)
                     break
         for trade in trades:
             self._buy_order_book.remove(trade.buy)
-            self._sell_order_book.remove(trade.sell)
+#             self._sell_order_book.remove(trade.sell)
         return trades
 
 class TestExchange(unittest.TestCase):
@@ -75,6 +76,47 @@ class TestExchange(unittest.TestCase):
         exchange.match_orders()
         orders = exchange.order_book()
         self.assertEqual(orders, [])
+
+    def test_not_matching_orders_dont_match(self):
+        exchange = Exchange()
+        buy_order = Order('buy',1000)
+        sell_order = Order('sell',999)
+        exchange.submit_order(buy_order)
+        exchange.submit_order(sell_order)
+        trades = exchange.match_orders()
+        self.assertEqual(trades, [])
+        self.assertEqual(len(exchange.order_book()), 2)
+        
+    def test_multiple_sells_single_buy(self):
+        exchange = Exchange()
+        buy_order = Order('buy',1000)
+        sell_order_1 = Order('sell',1000)
+        sell_order_2 = Order('sell',1000)
+        exchange.submit_order(buy_order)
+        exchange.submit_order(sell_order_1)
+        exchange.submit_order(sell_order_2)
+        trades = exchange.match_orders()
+        self.assertEqual(len(trades), 1)
+        self.assertEqual(trades[0].buy, buy_order)
+        self.assertEqual(trades[0].sell, sell_order_1)
+        self.assertEqual(len(exchange.order_book()), 1)
+        self.assertEqual(exchange.order_book()[0], sell_order_2)
+        
+    def test_multiple_buys_single_sell(self):
+        exchange = Exchange()
+        buy_order_1 = Order('buy',1000)
+        buy_order_2 = Order('buy',1000)
+        sell_order = Order('sell',1000)
+        exchange.submit_order(buy_order_1)
+        exchange.submit_order(buy_order_2)
+        exchange.submit_order(sell_order)
+        trades = exchange.match_orders()
+        self.assertEqual(len(trades), 1)
+        self.assertEqual(trades[0].buy, buy_order_1)
+        self.assertEqual(trades[0].sell, sell_order)
+        self.assertEqual(len(exchange.order_book()), 1)
+        self.assertEqual(exchange.order_book()[0], buy_order_2)
+        
 
 # orders will match if there is a buy and sell order with same amount
 # multiple sells, single buy
