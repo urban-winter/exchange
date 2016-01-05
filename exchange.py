@@ -60,14 +60,6 @@ class Exchange(object):
         return max(buy_prices) if buy_prices else None, min(sell_prices) if sell_prices else None
     
 class TestPriceDerivation(unittest.TestCase):
-    """
-    1. If no order has a price then price is None
-    2. If sell order exists with a price then offer price is that of the order
-    3. if buy order exists with a price then bid price is that of the order
-    4. if priced buy and sell orders exist then bid offer both valid
-    5. if multiple buy orders with prices then offer is highest price
-    6. if multiple sell orders with prices then bid is lowest price
-    """
     def test_no_price(self):
         exchange = Exchange()
         buy_order = Order('buy',1000)
@@ -103,8 +95,6 @@ class TestPriceDerivation(unittest.TestCase):
         bid, offer = exchange.bid_offer()
         self.assertEqual(bid, 10.1)
         self.assertEqual(offer, 11.0)
-
-
 
 class TestExchange(unittest.TestCase):
 
@@ -181,10 +171,6 @@ class TestExchange(unittest.TestCase):
         self.assertEqual(trades[0].sell, sell_order)
         self.assertEqual(len(exchange.order_book()), 1)
         self.assertEqual(exchange.order_book()[0], buy_order_2)
-                
-# check that match price is reported
-# add prices. price = None means market order
-
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
