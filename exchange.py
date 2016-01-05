@@ -23,10 +23,15 @@ class Order(object):
         self.price = price
 
 class Exchange(object):
+    # TODO: market orders
+    # TODO: partial fills
+    OPEN_DEFAULT_PRICE = 100.0
     
     def __init__(self):
         self._buy_order_book = []
         self._sell_order_book = []
+        self._latest_price = self.OPEN_DEFAULT_PRICE
+        self._latest_volume = None
 
     def submit_order(self,order):
         if order.buy_sell == 'buy':
@@ -50,6 +55,9 @@ class Exchange(object):
                     break
         for trade in trades:
             self._buy_order_book.remove(trade.buy)
+        if trades:
+            self._latest_price = trades[0].sell.price
+            self._latest_volume = trades[0].buy.quantity
         return trades
      
     def bid_offer(self):
@@ -58,6 +66,9 @@ class Exchange(object):
         buy_prices = [order.price for order in self._buy_order_book if order.price is not None]
         sell_prices = [order.price for order in self._sell_order_book if order.price is not None]
         return max(buy_prices) if buy_prices else None, min(sell_prices) if sell_prices else None
+    
+    def last_trade(self):
+        return self._latest_price, self._latest_volume
     
 class TestPriceDerivation(unittest.TestCase):
     def test_no_price(self):
@@ -95,6 +106,23 @@ class TestPriceDerivation(unittest.TestCase):
         bid, offer = exchange.bid_offer()
         self.assertEqual(bid, 10.1)
         self.assertEqual(offer, 11.0)
+    def test_last_traded_when_no_trades(self):
+        exchange = Exchange()
+        last_traded_price, last_traded_volume = exchange.last_trade()
+        self.assertEqual(last_traded_price, exchange.OPEN_DEFAULT_PRICE)
+        self.assertEqual(last_traded_volume, None)
+    def test_last_traded_when_a_completed_trade(self):
+        exchange = Exchange()
+        buy_order = Order('buy',1000,10.0)
+        sell_order = Order('sell',1000,9.9)
+        exchange.submit_order(buy_order)
+        exchange.submit_order(sell_order)
+        trades = exchange.match_orders()
+        last_traded_price, last_traded_volume = exchange.last_trade()
+        self.assertEqual(last_traded_price, 9.9)
+        self.assertEqual(last_traded_volume, 1000)
+        
+        
 
 class TestExchange(unittest.TestCase):
 
