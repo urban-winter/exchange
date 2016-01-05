@@ -33,6 +33,9 @@ class Exchange(object):
             self._buy_order_book.append(order)
         else:
             self._sell_order_book.append(order)
+            
+    def submit_orders(self, orders):
+        map(self.submit_order, orders)
     
     def order_book(self):
         return self._buy_order_book+self._sell_order_book
@@ -52,9 +55,9 @@ class Exchange(object):
     def bid_offer(self):
         """Return bid, offer prices
         """
-        buy_prices = [order.price for order in self._buy_order_book]
-        sell_prices = [order.price for order in self._sell_order_book]
-        return min(buy_prices), max(sell_prices)
+        buy_prices = [order.price for order in self._buy_order_book if order.price is not None]
+        sell_prices = [order.price for order in self._sell_order_book if order.price is not None]
+        return max(buy_prices) if buy_prices else None, min(sell_prices) if sell_prices else None
     
 class TestPriceDerivation(unittest.TestCase):
     """
@@ -83,6 +86,24 @@ class TestPriceDerivation(unittest.TestCase):
         bid, offer = exchange.bid_offer()
         self.assertEqual(bid, None)
         self.assertEqual(offer, 10.0)
+    def test_bid_price_only(self):
+        exchange = Exchange()
+        buy_order = Order('buy',1000,10.0)
+        sell_order = Order('sell',1000)
+        exchange.submit_order(buy_order)
+        exchange.submit_order(sell_order)
+        bid, offer = exchange.bid_offer()
+        self.assertEqual(bid, 10.0)
+        self.assertEqual(offer, None)
+    def test_multiple_priced_and_unpriced_buys_and_sells(self):
+        orders = (Order('buy',1000,10.0),Order('buy',1000,10.1),Order('buy',1000),
+                  Order('sell',1000,11.0),Order('sell',1000,11.1),Order('sell',1000))
+        exchange = Exchange()
+        exchange.submit_orders(orders)
+        bid, offer = exchange.bid_offer()
+        self.assertEqual(bid, 10.1)
+        self.assertEqual(offer, 11.0)
+
 
 
 class TestExchange(unittest.TestCase):
