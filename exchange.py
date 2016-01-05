@@ -50,7 +50,11 @@ class Exchange(object):
         return trades
      
     def bid_offer(self):
-        return None, None
+        """Return bid, offer prices
+        """
+        buy_prices = [order.price for order in self._buy_order_book]
+        sell_prices = [order.price for order in self._sell_order_book]
+        return min(buy_prices), max(sell_prices)
     
 class TestPriceDerivation(unittest.TestCase):
     """
@@ -70,6 +74,15 @@ class TestPriceDerivation(unittest.TestCase):
         bid, offer = exchange.bid_offer()
         self.assertEqual(bid, None)
         self.assertEqual(offer, None)
+    def test_offer_price_only(self):
+        exchange = Exchange()
+        buy_order = Order('buy',1000)
+        sell_order = Order('sell',1000,10.0)
+        exchange.submit_order(buy_order)
+        exchange.submit_order(sell_order)
+        bid, offer = exchange.bid_offer()
+        self.assertEqual(bid, None)
+        self.assertEqual(offer, 10.0)
 
 
 class TestExchange(unittest.TestCase):
