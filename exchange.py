@@ -6,12 +6,21 @@ Cancel orders
 View the order book
 Match orders to create trades
 
+Useful link:
+http://stackoverflow.com/questions/13112062/which-are-the-order-matching-algorithms-most-commonly-used-by-electronic-financi
+
 '''
 import unittest
 from collections import namedtuple
 
-Order = namedtuple('Order', 'buy_sell, quantity')
 Trade = namedtuple('Trade', 'buy,sell')
+
+class Order(object):
+    # TODO: consider subclasses for buy and sell
+    def __init__(self,buy_sell,quantity,price=None):
+        self.buy_sell = buy_sell
+        self.quantity = quantity
+        self.price = price
 
 class Exchange(object):
     
@@ -38,8 +47,30 @@ class Exchange(object):
                     break
         for trade in trades:
             self._buy_order_book.remove(trade.buy)
-#             self._sell_order_book.remove(trade.sell)
         return trades
+     
+    def bid_offer(self):
+        return None, None
+    
+class TestPriceDerivation(unittest.TestCase):
+    """
+    1. If no order has a price then price is None
+    2. If sell order exists with a price then offer price is that of the order
+    3. if buy order exists with a price then bid price is that of the order
+    4. if priced buy and sell orders exist then bid offer both valid
+    5. if multiple buy orders with prices then offer is highest price
+    6. if multiple sell orders with prices then bid is lowest price
+    """
+    def test_no_price(self):
+        exchange = Exchange()
+        buy_order = Order('buy',1000)
+        sell_order = Order('sell',1000)
+        exchange.submit_order(buy_order)
+        exchange.submit_order(sell_order)
+        bid, offer = exchange.bid_offer()
+        self.assertEqual(bid, None)
+        self.assertEqual(offer, None)
+
 
 class TestExchange(unittest.TestCase):
 
@@ -116,16 +147,10 @@ class TestExchange(unittest.TestCase):
         self.assertEqual(trades[0].sell, sell_order)
         self.assertEqual(len(exchange.order_book()), 1)
         self.assertEqual(exchange.order_book()[0], buy_order_2)
-        
-
-# orders will match if there is a buy and sell order with same amount
-# multiple sells, single buy
-# multiple buys, single sell
-# volumes don't match
-        
-
-# check that orders are removed
+                
 # check that match price is reported
+# add prices. price = None means market order
+
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
