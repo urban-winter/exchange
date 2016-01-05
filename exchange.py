@@ -24,7 +24,7 @@ class Order(object):
 
 class Exchange(object):
     # TODO: market orders
-    # TODO: partial fills
+    # TODO: partial fills, volumes not matching generally
     OPEN_DEFAULT_PRICE = 100.0
     
     def __init__(self):
