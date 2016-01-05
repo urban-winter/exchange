@@ -42,8 +42,14 @@ class Exchange(object):
     def submit_orders(self, orders):
         map(self.submit_order, orders)
     
+    def buy_order_book(self):
+        return self._buy_order_book
+    
+    def sell_order_book(self):
+        return self._sell_order_book        
+
     def order_book(self):
-        return self._buy_order_book+self._sell_order_book
+        return self.buy_order_book()+self.sell_order_book()
     
     def match_orders(self):
         trades = []
