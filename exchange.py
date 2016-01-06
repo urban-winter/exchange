@@ -38,12 +38,15 @@ class Exchange(object):
         self._latest_price = self.OPEN_DEFAULT_PRICE
         self._latest_volume = None
         self._clients = []
+        self.current_client = None
+        self.client_id_by_order = {}
 
     def submit_order(self,order):
         if order.buy_sell == 'buy':
             self._buy_order_book.append(order)
         else:
             self._sell_order_book.append(order)
+        self.client_id_by_order[order] = self.current_client
             
     def submit_orders(self, orders):
         map(self.submit_order, orders)
@@ -83,11 +86,22 @@ class Exchange(object):
         return self._latest_price, self._latest_volume
     
     def do_trading(self):
-        for client in self._clients:
+        for id, client in enumerate(self._clients):
+            self.current_client = id
             client(self)
+        self.current_client = None
     
     def add_client(self,client_callable):
         self._clients.append(client_callable)
+        
+    def delete_my_trades(self):
+        for order in self._buy_order_book:
+            if self.client_id_by_order[order] == self.current_client:
+                self._buy_order_book.remove(order)
+        for order in self._sell_order_book:
+            if self.client_id_by_order[order] == self.current_client:
+                self._sell_order_book.remove(order)
+
 
 class TestClientFunctions(unittest.TestCase):
     class DummyClient(object):
@@ -120,6 +134,20 @@ class TestClientFunctions(unittest.TestCase):
         exchange.add_client(self.order_submitting_client)
         exchange.do_trading()
         self.assertEqual(exchange.order_book(), [Order('buy',1000,10.0)])
+    def test_client_trades_have_client_id(self):
+        exchange = Exchange()
+        exchange.add_client(self.order_submitting_client)
+        exchange.do_trading()
+        self.assertEqual(exchange.client_id_by_order.values(), [0])
+    def test_client_can_delete_own_orders(self):
+        exchange = Exchange()
+        exchange.current_client = 1
+        exchange.submit_order(Order('buy',10,1.0))
+        exchange.current_client = 2
+        exchange.submit_order(Order('sell',10,1.0))
+        self.assertEqual(len(exchange.order_book()), 2)
+        exchange.delete_my_trades()
+        self.assertEqual(exchange.order_book(), [Order('buy',10,1.0)])
     
 class TestPriceDerivation(unittest.TestCase):
     def test_no_price(self):
