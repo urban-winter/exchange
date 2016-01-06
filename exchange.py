@@ -71,7 +71,7 @@ class Exchange(object):
         return trades
      
     def bid_offer(self):
-        """Return bid, offer prices
+        """Return bid, offer price
         """
         buy_prices = [order.price for order in self._buy_order_book if order.price is not None]
         sell_prices = [order.price for order in self._sell_order_book if order.price is not None]
@@ -87,19 +87,30 @@ class Exchange(object):
     def add_client(self,client_callable):
         self._clients.append(client_callable)
 
-class TestClientRegistration(unittest.TestCase):
-    client_call_count = 0
-    def dummy_client(self):
-        self.client_call_count += 1
+class TestClientFunctions(unittest.TestCase):
+    class DummyClient(object):
+        def __init__(self):
+            self.call_count = 0
+        def __call__(self):
+            self.call_count += 1
     def test_do_trading_with_no_clients(self):
         exchange = Exchange()
         exchange.do_trading()
     def test_registered_client_is_called(self):
         exchange = Exchange()
-        exchange.add_client(self.dummy_client)
+        client = self.DummyClient()
+        exchange.add_client(client)
         exchange.do_trading()
-        self.assertEqual(self.client_call_count, 1)
-        
+        self.assertEqual(client.call_count,1)
+    def test_two_clients(self):
+        exchange = Exchange()
+        client1 = self.DummyClient()
+        exchange.add_client(client1)
+        client2 = self.DummyClient()
+        exchange.add_client(client2)
+        exchange.do_trading()
+        self.assertEqual(client1.call_count,1)
+        self.assertEqual(client2.call_count,1)
     
 class TestPriceDerivation(unittest.TestCase):
     def test_no_price(self):
