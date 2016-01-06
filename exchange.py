@@ -9,6 +9,9 @@ Match orders to create trades
 Useful link:
 http://stackoverflow.com/questions/13112062/which-are-the-order-matching-algorithms-most-commonly-used-by-electronic-financi
 
+market clients register with the exchange
+exchange.do_trading calls all
+exchange.delete_my_trades
 '''
 import unittest
 from collections import namedtuple
@@ -32,6 +35,7 @@ class Exchange(object):
         self._sell_order_book = []
         self._latest_price = self.OPEN_DEFAULT_PRICE
         self._latest_volume = None
+        self._clients = []
 
     def submit_order(self,order):
         if order.buy_sell == 'buy':
@@ -75,6 +79,27 @@ class Exchange(object):
     
     def last_trade(self):
         return self._latest_price, self._latest_volume
+    
+    def do_trading(self):
+        for client in self._clients:
+            client()
+    
+    def add_client(self,client_callable):
+        self._clients.append(client_callable)
+
+class TestClientRegistration(unittest.TestCase):
+    client_call_count = 0
+    def dummy_client(self):
+        self.client_call_count += 1
+    def test_do_trading_with_no_clients(self):
+        exchange = Exchange()
+        exchange.do_trading()
+    def test_registered_client_is_called(self):
+        exchange = Exchange()
+        exchange.add_client(self.dummy_client)
+        exchange.do_trading()
+        self.assertEqual(self.client_call_count, 1)
+        
     
 class TestPriceDerivation(unittest.TestCase):
     def test_no_price(self):
@@ -128,8 +153,6 @@ class TestPriceDerivation(unittest.TestCase):
         self.assertEqual(last_traded_price, 9.9)
         self.assertEqual(last_traded_volume, 1000)
         
-        
-
 class TestExchange(unittest.TestCase):
 
     def test_can_retrieve_order(self):
