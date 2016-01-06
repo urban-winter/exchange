@@ -24,6 +24,8 @@ class Order(object):
         self.buy_sell = buy_sell
         self.quantity = quantity
         self.price = price
+    def __eq__(self, other): 
+        return self.__dict__ == other.__dict__
 
 class Exchange(object):
     # TODO: market orders
@@ -82,7 +84,7 @@ class Exchange(object):
     
     def do_trading(self):
         for client in self._clients:
-            client()
+            client(self)
     
     def add_client(self,client_callable):
         self._clients.append(client_callable)
@@ -91,8 +93,10 @@ class TestClientFunctions(unittest.TestCase):
     class DummyClient(object):
         def __init__(self):
             self.call_count = 0
-        def __call__(self):
+        def __call__(self,_):
             self.call_count += 1
+    def order_submitting_client(self,exchange):
+        exchange.submit_order(Order('buy',1000,10.0))
     def test_do_trading_with_no_clients(self):
         exchange = Exchange()
         exchange.do_trading()
@@ -111,6 +115,11 @@ class TestClientFunctions(unittest.TestCase):
         exchange.do_trading()
         self.assertEqual(client1.call_count,1)
         self.assertEqual(client2.call_count,1)
+    def test_client_can_submit_orders(self):
+        exchange = Exchange()
+        exchange.add_client(self.order_submitting_client)
+        exchange.do_trading()
+        self.assertEqual(exchange.order_book(), [Order('buy',1000,10.0)])
     
 class TestPriceDerivation(unittest.TestCase):
     def test_no_price(self):
