@@ -11,7 +11,7 @@ http://stackoverflow.com/questions/13112062/which-are-the-order-matching-algorit
 
 market clients register with the exchange
 exchange.do_trading calls all
-exchange.delete_my_trades
+exchange.delete_my_orders
 '''
 import unittest
 from collections import namedtuple
@@ -26,6 +26,8 @@ class Order(object):
         self.price = price
     def __eq__(self, other): 
         return self.__dict__ == other.__dict__
+    def __str__(self):
+        return 'Order( buy_sell=%s, quantity=%s, price=%s)' % (self.buy_sell, self.quantity, self.price)
 
 class Exchange(object):
     # TODO: market orders
@@ -66,10 +68,10 @@ class Exchange(object):
             for sell_order in self._sell_order_book:
                 if buy_order.quantity == sell_order.quantity:
                     trades.append(Trade(buy=buy_order, sell=sell_order))
-                    self._sell_order_book.remove(sell_order)
+                    self._delete_order(sell_order, self._sell_order_book)
                     break
         for trade in trades:
-            self._buy_order_book.remove(trade.buy)
+            self._delete_order(trade.buy, self._buy_order_book)
         if trades:
             self._latest_price = trades[0].sell.price
             self._latest_volume = trades[0].buy.quantity
@@ -94,14 +96,18 @@ class Exchange(object):
     def add_client(self,client_callable):
         self._clients.append(client_callable)
         
-    def delete_my_trades(self):
-        for order in self._buy_order_book:
+    def _delete_order(self, order, order_book):
+        order_book.remove(order)
+        del(self.client_id_by_order[order])
+    
+    def _delete_orders(self, order_book):
+        for order in order_book:
             if self.client_id_by_order[order] == self.current_client:
-                self._buy_order_book.remove(order)
-        for order in self._sell_order_book:
-            if self.client_id_by_order[order] == self.current_client:
-                self._sell_order_book.remove(order)
-
+                self._delete_order(order, order_book)
+            
+    def delete_my_orders(self):
+        self._delete_orders(self._buy_order_book)
+        self._delete_orders(self._sell_order_book)
 
 class TestClientFunctions(unittest.TestCase):
     class DummyClient(object):
@@ -146,8 +152,9 @@ class TestClientFunctions(unittest.TestCase):
         exchange.current_client = 2
         exchange.submit_order(Order('sell',10,1.0))
         self.assertEqual(len(exchange.order_book()), 2)
-        exchange.delete_my_trades()
+        exchange.delete_my_orders()
         self.assertEqual(exchange.order_book(), [Order('buy',10,1.0)])
+        self.assertEqual(exchange.client_id_by_order.values(), [1])
     
 class TestPriceDerivation(unittest.TestCase):
     def test_no_price(self):
@@ -216,6 +223,9 @@ class TestExchange(unittest.TestCase):
         matches = exchange.match_orders()
         self.assertEqual(matches, [])
 
+# TODO: buy higher than sell matches
+# TODO: buy lower than sell doesn't match
+
     def test_match_orders(self):
         exchange = Exchange()
         buy_order = Order('buy',1000)
@@ -229,6 +239,7 @@ class TestExchange(unittest.TestCase):
         
     def test_matched_orders_removed_from_order_book(self):
         exchange = Exchange()
+        exchange.current_client = 1
         buy_order = Order('buy',1000)
         sell_order = Order('sell',1000)
         exchange.submit_order(buy_order)
@@ -236,6 +247,7 @@ class TestExchange(unittest.TestCase):
         exchange.match_orders()
         orders = exchange.order_book()
         self.assertEqual(orders, [])
+        self.assertEqual(exchange.client_id_by_order.values(), [])
 
     def test_not_matching_orders_dont_match(self):
         exchange = Exchange()
