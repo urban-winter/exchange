@@ -55,7 +55,10 @@ class OrderBook(object):
     def lowest_sell_order(self):
         """Return the sell order with the lowest price or None if there are no sell orders
         """
-        pass
+        sell_prices = [order.price for order in self._orders 
+                        if order.price is not None 
+                        and order.buy_sell == 'sell']
+        return min(sell_prices) if sell_prices else None
     def delete_orders_for_client(self, client_id):
         """Delete all orders associated with a specified client
         """
@@ -92,8 +95,26 @@ class TestOrderBook(unittest.TestCase):
         order_book = OrderBook()
         order_book.add(Order('buy', 1000, 10.0), 0)
         order_book.add(Order('buy', 1000, 10.1), 0)
-        # then the highest buy order should be the highest
+        # then the highest buy order should be the higher
         self.assertEqual(order_book.highest_buy_order(), 10.1)        
+    def test_lowest_sell_order_1(self):
+        # given an empty order book
+        order_book = OrderBook()
+        # then the lowest sell order should be none
+        self.assertEqual(order_book.lowest_sell_order(), None)
+    def test_lowest_sell_order_2(self):
+        # given a book with only buy orders
+        order_book = OrderBook()
+        order_book.add(Order('buy', 1000, 10.0), 0)
+        # then the lowest sell order should be none
+        self.assertEqual(order_book.lowest_sell_order(), None)        
+    def test_lowest_sell_order_3(self):
+        # given a book with 2 sell orders
+        order_book = OrderBook()
+        order_book.add(Order('sell', 1000, 10.0), 0)
+        order_book.add(Order('sell', 1000, 10.1), 0)
+        # then the lowest sell order should be the lower
+        self.assertEqual(order_book.lowest_sell_order(), 10.0)        
     def test_remove_all_orders_for_client(self):
         pass
 
