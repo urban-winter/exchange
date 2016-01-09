@@ -47,7 +47,10 @@ class OrderBook(object):
     def highest_buy_order(self):
         """Return the buy order with the highest price or None if there are no buy orders
         """
-#         buy_prices = [order.price for order in self._buy_order_book if order.price is not None]
+        buy_prices = [order.price for order in self._orders 
+                        if order.price is not None 
+                        and order.buy_sell == 'buy']
+        return max(buy_prices) if buy_prices else None
 #         sell_prices = [order.price for order in self._sell_order_book if order.price is not None]        pass
     def lowest_sell_order(self):
         """Return the sell order with the lowest price or None if there are no sell orders
@@ -73,6 +76,24 @@ class TestOrderBook(unittest.TestCase):
         # delete it and confirm that it's gone
         order_book.delete(test_order)
         self.assertEqual(order_book.orders(), [])
+    def test_highest_buy_order_1(self):
+        # given an empty order book
+        order_book = OrderBook()
+        # then the highest buy order should be none
+        self.assertEqual(order_book.highest_buy_order(), None)
+    def test_highest_buy_order_2(self):
+        # given a book with only sell orders
+        order_book = OrderBook()
+        order_book.add(Order('sell', 1000, 10.0), 0)
+        # then the highest buy order should be none
+        self.assertEqual(order_book.highest_buy_order(), None)        
+    def test_highest_buy_order_3(self):
+        # given a book with 2 buy orders
+        order_book = OrderBook()
+        order_book.add(Order('buy', 1000, 10.0), 0)
+        order_book.add(Order('buy', 1000, 10.1), 0)
+        # then the highest buy order should be the highest
+        self.assertEqual(order_book.highest_buy_order(), 10.1)        
     def test_remove_all_orders_for_client(self):
         pass
 
