@@ -39,7 +39,7 @@ class OrderBook(object):
     def delete(self, order):
         """Delete an order from the book
         """
-        pass
+        self._orders.remove(order)
     def orders(self):
         """Return a list of all orders in the book
         """
@@ -64,8 +64,15 @@ class TestOrderBook(unittest.TestCase):
         test_order = Order('buy',1000,10.0)
         order_book.add(test_order, 1)
         self.assertEqual(order_book.orders(), [test_order])
-    def test_remove_order(self):
-        pass
+    def test_delete_order(self):
+        # add an order and confirm that it's there
+        order_book = OrderBook()
+        test_order = Order('buy',1000,10.0)
+        order_book.add(test_order, 1)
+        self.assertEqual(order_book.orders(), [test_order])
+        # delete it and confirm that it's gone
+        order_book.delete(test_order)
+        self.assertEqual(order_book.orders(), [])
     def test_remove_all_orders_for_client(self):
         pass
 
