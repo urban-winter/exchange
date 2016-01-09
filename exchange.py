@@ -35,19 +35,21 @@ class OrderBook(object):
     def add(self, order, client_id):
         """Add an order to the book
         """
-        self._orders.append(order)
-    def delete(self, order):
+        self._orders.append((client_id,order))
+    def delete(self, order_to_delete):
         """Delete an order from the book
         """
-        self._orders.remove(order)
+        for (client_id,order) in self._orders:
+            if order == order_to_delete:
+                self._orders.remove((client_id,order))
     def orders(self):
         """Return a list of all orders in the book
         """
-        return self._orders
+        return [order for (_,order) in self._orders]
     def highest_buy_order(self):
         """Return the buy order with the highest price or None if there are no buy orders
         """
-        buy_prices = [order.price for order in self._orders 
+        buy_prices = [order.price for (_,order) in self._orders 
                         if order.price is not None 
                         and order.buy_sell == 'buy']
         return max(buy_prices) if buy_prices else None
@@ -55,14 +57,16 @@ class OrderBook(object):
     def lowest_sell_order(self):
         """Return the sell order with the lowest price or None if there are no sell orders
         """
-        sell_prices = [order.price for order in self._orders 
+        sell_prices = [order.price for (_,order) in self._orders 
                         if order.price is not None 
                         and order.buy_sell == 'sell']
         return min(sell_prices) if sell_prices else None
-    def delete_orders_for_client(self, client_id):
+    def delete_orders_for_client(self, client_id_to_delete):
         """Delete all orders associated with a specified client
         """
-        pass
+        for (client_id,order) in self._orders:
+            if client_id == client_id_to_delete:
+                self._orders.remove((client_id,order))
 
 class TestOrderBook(unittest.TestCase):
     def test_add_order(self):
@@ -115,8 +119,16 @@ class TestOrderBook(unittest.TestCase):
         order_book.add(Order('sell', 1000, 10.1), 0)
         # then the lowest sell order should be the lower
         self.assertEqual(order_book.lowest_sell_order(), 10.0)        
-    def test_remove_all_orders_for_client(self):
-        pass
+    def test_remove_all_orders_for_client_1(self):
+        # given an order book with 1 order for each of 2 clients
+        order_book = OrderBook()
+        order_book.add(Order('buy',1000,10.0), 0)
+        order_book.add(Order('buy',1001,10.1), 1)
+        # when the order for one client is removed
+        order_book.delete_orders_for_client(0)
+        # then the order for that client is no longer present
+        # and the order for the other client is still present
+        self.assertEqual(order_book.orders(), [Order('buy',1001,10.1)])
 
 # class Exchange(object):
 #     # TODO: market orders
@@ -382,4 +394,4 @@ class TestOrderBook(unittest.TestCase):
 # 
 # if __name__ == "__main__":
 #     #import sys;sys.argv = ['', 'Test.testName']
-#     unittest.main()
+#     unittest.main(
