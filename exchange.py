@@ -67,6 +67,12 @@ class OrderBook(object):
         for (client_id,order) in self._orders:
             if client_id == client_id_to_delete:
                 self._orders.remove((client_id,order))
+    def buy_orders(self):
+        """Return all buy orders in the book"""
+        return [order for (_,order) in self._orders if order.buy_sell == 'buy']
+    def sell_orders(self):
+        """Return all sell orders in the book"""
+        return [order for (_,order) in self._orders if order.buy_sell == 'sell']
 
 class TestOrderBook(unittest.TestCase):
     def test_add_order(self):
@@ -129,6 +135,22 @@ class TestOrderBook(unittest.TestCase):
         # then the order for that client is no longer present
         # and the order for the other client is still present
         self.assertEqual(order_book.orders(), [Order('buy',1001,10.1)])
+    def test_buy_orders(self):
+        # given an order book with a buy and a sell order
+        order_book = OrderBook()
+        order_book.add(Order('buy',1000,10.0), 0)
+        order_book.add(Order('sell',1001,10.1), 1)        
+        # when buy_orders is called
+        # only the buy order is returned
+        self.assertEqual(order_book.buy_orders(), [Order('buy',1000,10.0)])
+    def test_sell_orders(self):
+        # given an order book with a buy and a sell order
+        order_book = OrderBook()
+        order_book.add(Order('buy',1000,10.0), 0)
+        order_book.add(Order('sell',1001,10.1), 1)        
+        # when sell_orders is called
+        # only the sell order is returned
+        self.assertEqual(order_book.sell_orders(), [Order('sell',1001,10.1)])
 
 class Exchange(object):
     # TODO: market orders
@@ -136,41 +158,37 @@ class Exchange(object):
     OPEN_DEFAULT_PRICE = 100.0
      
     def __init__(self):
-        self._buy_order_book = OrderBook()
-        self._sell_order_book = OrderBook()
+        self._order_book = OrderBook()
         self._latest_price = self.OPEN_DEFAULT_PRICE
         self._latest_volume = None
         self._clients = []
         self.current_client = None
  
     def submit_order(self,order):
-        if order.buy_sell == 'buy':
-            self._buy_order_book.add(order, self.current_client)
-        else:
-            self._sell_order_book.add(order, self.current_client)
+        self._order_book.add(order, self.current_client)
              
     def submit_orders(self, orders):
         map(self.submit_order, orders)
      
     def buy_order_book(self):
-        return self._buy_order_book.orders()
+        return self._order_book.buy_orders()
      
     def sell_order_book(self):
-        return self._sell_order_book.orders()        
+        return self._order_book.sell_orders()        
  
     def order_book(self):
-        return self.buy_order_book()+self.sell_order_book()
+        return self._order_book.orders()
      
     def match_orders(self):
         trades = []
-        for buy_order in self._buy_order_book.orders():
-            for sell_order in self._sell_order_book.orders():
+        for buy_order in self._order_book.buy_orders():
+            for sell_order in self._order_book.sell_orders():
                 if buy_order.quantity == sell_order.quantity:
                     trades.append(Trade(buy=buy_order, sell=sell_order))
-                    self._sell_order_book.delete(sell_order)
+                    self._order_book.delete(sell_order)
                     break
         for trade in trades:
-            self._buy_order_book.delete(trade.buy)
+            self._order_book.delete(trade.buy)
         if trades:
             self._latest_price = trades[0].sell.price
             self._latest_volume = trades[0].buy.quantity
@@ -179,7 +197,7 @@ class Exchange(object):
     def bid_offer(self):
         """Return bid, offer price
         """
-        return self._buy_order_book.highest_buy_order(), self._sell_order_book.lowest_sell_order()
+        return self._order_book.highest_buy_order(), self._order_book.lowest_sell_order()
      
     def last_trade(self):
         return self._latest_price, self._latest_volume
@@ -192,25 +210,9 @@ class Exchange(object):
      
     def add_client(self,client_callable):
         self._clients.append(client_callable)
-         
-#     def _delete_order(self, order, order_book):
-#         """Delete an order from an order_book
-#         
-#         Orders cannot be removed directly because reference also
-#         needs to be removed from client_id_by_order.
-#         Order book really needs to be factored out as its own class
-#         """
-#         order_book.remove(order)
-#         del(self.client_id_by_order[order])
-#     
-#     def _delete_orders(self, order_book):
-#         for order in order_book:
-#             if self.client_id_by_order[order] == self.current_client:
-#                 self._delete_order(order, order_book)
-             
+                      
     def delete_my_orders(self):
-        self._buy_order_book.delete_orders_for_client(self.current_client)
-        self._sell_order_book.delete_orders_for_client(self.current_client)
+        self._order_book.delete_orders_for_client(self.current_client)
  
 class TestClientFunctions(unittest.TestCase):
     class DummyClient(object):
