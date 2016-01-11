@@ -49,23 +49,20 @@ class TestMarketMaker(unittest.TestCase):
         self.assertEqual(len(exchange.order_book()), 3)
         trades = exchange.match_orders()
         self.assertEqual(len(trades), 1)
-        # the remaining single order should belong to client 0 
-        self.assertEqual(exchange.client_id_by_order.values(), [0])
         exchange.do_trading()
-#         # price should have gone up
-#         price, volume = exchange.last_trade()
-#         self.assertEqual(price, exchange.OPEN_DEFAULT_PRICE * (1 + MarketMaker.MARGIN/2))
-#         # old mm orders should have been removed
-#         # new mm offers should be based on new price
-#         # check order prices and volumes
-#         self.assertEqual(len(exchange.order_book()), 2)
-#         expected_offer = price * (1 + MarketMaker.MARGIN/2)
-#         expected_bid = price * (1 - MarketMaker.MARGIN/2)
-#         self.assertEqual(exchange.buy_order_book()[0].price, expected_bid)
-#         self.assertEqual(exchange.sell_order_book()[0].price, expected_offer)
-#         self.assertEqual(exchange.buy_order_book()[0].quantity, MarketMaker.ORDER_QUANTITY)
-#         self.assertEqual(exchange.sell_order_book()[0].quantity, MarketMaker.ORDER_QUANTITY)
-        
+        # price should have gone up
+        price, volume = exchange.last_trade()
+        self.assertEqual(price, exchange.OPEN_DEFAULT_PRICE * (1 + MarketMaker.MARGIN/2))
+        # old mm orders should have been removed
+        # new mm offers should be based on new price
+        # check order prices and volumes
+        self.assertEqual(len(exchange.order_book()), 2)
+        expected_offer = price * (1 + MarketMaker.MARGIN/2)
+        expected_bid = price * (1 - MarketMaker.MARGIN/2)
+        self.assertEqual(exchange.buy_order_book()[0].price, expected_bid)
+        self.assertEqual(exchange.sell_order_book()[0].price, expected_offer)
+        self.assertEqual(exchange.buy_order_book()[0].quantity, MarketMaker.ORDER_QUANTITY)
+        self.assertEqual(exchange.sell_order_book()[0].quantity, MarketMaker.ORDER_QUANTITY)
         
     # check that when a trade is completed the market maker trades are replaced
     # check that marker maker prices are based on order book prices
