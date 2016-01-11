@@ -73,6 +73,11 @@ class OrderBook(object):
     def sell_orders(self):
         """Return all sell orders in the book"""
         return [order for (_,order) in self._orders if order.buy_sell == 'sell']
+    def client_id_for(self, order):
+        """Return the client ID associated with the specified trade"""
+        for (client_id,order_in_book) in self._orders:
+            if order_in_book == order:
+                return client_id
 
 class TestOrderBook(unittest.TestCase):
     def test_add_order(self):
@@ -183,7 +188,8 @@ class Exchange(object):
         trades = []
         for buy_order in self._order_book.buy_orders():
             for sell_order in self._order_book.sell_orders():
-                if buy_order.quantity == sell_order.quantity:
+                if (buy_order.quantity == sell_order.quantity and 
+                    self._order_book.client_id_for(buy_order) != self._order_book.client_id_for(sell_order)):
                     trades.append(Trade(buy=buy_order, sell=sell_order))
                     self._order_book.delete(sell_order)
                     break
@@ -300,7 +306,9 @@ class TestPriceDerivation(unittest.TestCase):
         exchange = Exchange()
         buy_order = Order('buy',1000,10.0)
         sell_order = Order('sell',1000,9.9)
+        exchange.current_client = 1
         exchange.submit_order(buy_order)
+        exchange.current_client = 2
         exchange.submit_order(sell_order)
         trades = exchange.match_orders()
         last_traded_price, last_traded_volume = exchange.last_trade()
@@ -322,14 +330,23 @@ class TestExchange(unittest.TestCase):
         matches = exchange.match_orders()
         self.assertEqual(matches, [])
  
-# TODO: buy higher than sell matches
-# TODO: buy lower than sell doesn't match
- 
+    def test_no_match_for_own_orders(self):
+        exchange = Exchange()
+        exchange.current_client = 1
+        buy_order = Order('buy',1000)
+        sell_order = Order('sell',1000)
+        exchange.submit_order(buy_order)
+        exchange.submit_order(sell_order)
+        trades = exchange.match_orders()
+        self.assertEqual(len(trades), 0)
+    
     def test_match_orders(self):
         exchange = Exchange()
         buy_order = Order('buy',1000)
         sell_order = Order('sell',1000)
+        exchange.current_client = 0
         exchange.submit_order(buy_order)
+        exchange.current_client = 1
         exchange.submit_order(sell_order)
         trades = exchange.match_orders()
         self.assertEqual(len(trades), 1)
@@ -342,6 +359,7 @@ class TestExchange(unittest.TestCase):
         buy_order = Order('buy',1000)
         sell_order = Order('sell',1000)
         exchange.submit_order(buy_order)
+        exchange.current_client = 2
         exchange.submit_order(sell_order)
         exchange.match_orders()
         orders = exchange.order_book()
@@ -362,7 +380,9 @@ class TestExchange(unittest.TestCase):
         buy_order = Order('buy',1000)
         sell_order_1 = Order('sell',1000)
         sell_order_2 = Order('sell',1000)
+        exchange.current_client = 1
         exchange.submit_order(buy_order)
+        exchange.current_client = 2
         exchange.submit_order(sell_order_1)
         exchange.submit_order(sell_order_2)
         trades = exchange.match_orders()
@@ -377,8 +397,10 @@ class TestExchange(unittest.TestCase):
         buy_order_1 = Order('buy',1000)
         buy_order_2 = Order('buy',1000)
         sell_order = Order('sell',1000)
+        exchange.current_client = 1
         exchange.submit_order(buy_order_1)
         exchange.submit_order(buy_order_2)
+        exchange.current_client = 2
         exchange.submit_order(sell_order)
         trades = exchange.match_orders()
         self.assertEqual(len(trades), 1)
@@ -386,6 +408,13 @@ class TestExchange(unittest.TestCase):
         self.assertEqual(trades[0].sell, sell_order)
         self.assertEqual(len(exchange.order_book()), 1)
         self.assertEqual(exchange.order_book()[0], buy_order_2)
+        
+# bid lower than offer - no match
+# bid equal to offer - match
+# bid higher than offer - match
+# multiple buys, highest takes it
+# multiple sells, lowest takes it
+# can't trade with yourself
  
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
