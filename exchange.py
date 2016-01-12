@@ -15,6 +15,7 @@ exchange.delete_my_orders
 '''
 import unittest
 from collections import namedtuple
+from locale import currency
 
 Trade = namedtuple('Trade', 'buy,sell')
 
@@ -219,6 +220,43 @@ class Exchange(object):
                       
     def delete_my_orders(self):
         self._order_book.delete_orders_for_client(self.current_client)
+
+def match_orders(current_price, buy_price, sell_price):
+    match = buy_price is None or sell_price is None or buy_price >= sell_price
+    if buy_price is None and sell_price is None:
+        new_price = current_price
+    elif buy_price is None:
+        new_price = max(sell_price,current_price)
+    elif sell_price is None:
+        new_price = min(buy_price,current_price)
+    elif current_price >= sell_price and current_price <= buy_price:
+        new_price = current_price
+    elif current_price < sell_price:
+        new_price = sell_price
+    else:
+        new_price = buy_price
+    return match, new_price if match else current_price
+
+class TestMatching(unittest.TestCase):
+    scenarios = (
+                # Current price, buy limit, sell limit, match, new price
+                (10.0,           None,      None,       True,  10.0),
+                (1.0,            9.0,       None,       True,   1.0),
+                (10.0,           9.0,       None,       True,   9.0),
+                (11.0,           None,      10.0,       True,  11.0),
+                (10.0,           11.0,       9.0,       True,  10.0),
+                (10.0,           13.0,      11.0,       True,  11.0),
+                (10.0,           9.0,        8.0,       True,   9.0),
+                (10.0,           10.0,      11.0,      False,  10.0),
+                 )
+    def do_scenario(self, current_price, buy_price, sell_price, expected_match, expected_new_price):
+        print current_price, buy_price, sell_price, expected_match, expected_new_price
+        match, new_price = match_orders(current_price, buy_price, sell_price)
+        self.assertEqual(match, expected_match)
+        self.assertEqual(new_price, expected_new_price)
+    def test_matching_scenarios(self):
+        for scenario in self.scenarios:
+            self.do_scenario(*scenario)
  
 class TestClientFunctions(unittest.TestCase):
     class DummyClient(object):

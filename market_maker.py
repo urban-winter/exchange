@@ -64,8 +64,22 @@ class TestMarketMaker(unittest.TestCase):
         self.assertEqual(exchange.buy_order_book()[0].quantity, MarketMaker.ORDER_QUANTITY)
         self.assertEqual(exchange.sell_order_book()[0].quantity, MarketMaker.ORDER_QUANTITY)
         
-    # check that when a trade is completed the market maker trades are replaced
     # check that marker maker prices are based on order book prices
+    def test_market_maker_price(self):
+        # scenario: check that marker maker prices are based on order book prices
+        exchange = Exchange()
+        # given an order book with a buy order with price 10.0
+        exchange.current_client = 99
+        exchange.submit_order(Order('buy',100,10.0))        
+        # and the market maker is a client of the exchange
+        exchange.add_client(MarketMaker())
+        # when do_trading is called
+        exchange.do_trading()
+        # the order book contains a buy order with price 10.0 + MARGIN/2
+        self.assertEqual(exchange.buy_order_book(),
+                         [Order('buy',100,10.0),Order('buy',100,10.0 * (1 + MarketMaker.MARGIN/2))])
+        
+    
 
 
 if __name__ == "__main__":
