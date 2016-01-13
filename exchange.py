@@ -17,7 +17,7 @@ import unittest
 from collections import namedtuple
 from locale import currency
 
-Trade = namedtuple('Trade', 'buy,sell')
+Trade = namedtuple('Trade', 'buy,sell,price')
 
 class Order(object):
     # TODO: consider subclasses for buy and sell
@@ -186,21 +186,24 @@ class Exchange(object):
         return self._order_book.orders()
     
     def order_matches(self, buy_order, sell_order):
-        return (buy_order.quantity == sell_order.quantity and 
-            self._order_book.client_id_for(buy_order) != self._order_book.client_id_for(sell_order))
+        if (buy_order.quantity == sell_order.quantity and 
+            self._order_book.client_id_for(buy_order) != self._order_book.client_id_for(sell_order)):
+            return match_order(self._latest_price, buy_order.price, sell_order.price)
+        return (False, None)
      
     def match_orders(self):
         trades = []
         for buy_order in self._order_book.buy_orders():
             for sell_order in self._order_book.sell_orders():
-                if self.order_matches(buy_order,sell_order):
-                    trades.append(Trade(buy=buy_order, sell=sell_order))
+                orders_match, trade_price = self.order_matches(buy_order,sell_order)
+                if orders_match:
+                    trades.append(Trade(buy=buy_order, sell=sell_order,price=trade_price))
                     self._order_book.delete(sell_order)
                     break
         for trade in trades:
             self._order_book.delete(trade.buy)
         if trades:
-            self._latest_price = trades[0].sell.price
+            self._latest_price = trades[0].price
             self._latest_volume = trades[0].buy.quantity
         return trades
       
@@ -238,7 +241,7 @@ def clamp(n, max_n, min_n):
     else:
         return max(min(max_n, n), min_n)
 
-def match_orders(current_price, buy_price, sell_price):
+def match_order(current_price, buy_price, sell_price):
     match = buy_price is None or sell_price is None or buy_price >= sell_price
     new_price = clamp(current_price, buy_price, sell_price)
     return match, new_price if match else current_price
@@ -264,7 +267,7 @@ class TestMatching(unittest.TestCase):
     def do_scenario(self, current_price, buy_price, sell_price, expected_match, expected_new_price):
         description = 'Scenario: %s,%s,%s,%s,%s' % (
                             current_price, buy_price, sell_price, expected_match, expected_new_price)
-        match, new_price = match_orders(current_price, buy_price, sell_price)
+        match, new_price = match_order(current_price, buy_price, sell_price)
         self.assertEqual(match, expected_match, description)
         self.assertEqual(new_price, expected_new_price, description)
     def test_matching_scenarios(self):
@@ -355,6 +358,7 @@ class TestPriceDerivation(unittest.TestCase):
         self.assertEqual(last_traded_volume, None)
     def test_last_traded_when_a_completed_trade(self):
         exchange = Exchange()
+        exchange._latest_price = 1.0
         buy_order = Order('buy',1000,10.0)
         sell_order = Order('sell',1000,9.9)
         exchange.current_client = 1
