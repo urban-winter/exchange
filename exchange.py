@@ -220,40 +220,50 @@ class Exchange(object):
                       
     def delete_my_orders(self):
         self._order_book.delete_orders_for_client(self.current_client)
+        
+def clamp(n, max_n, min_n):
+    """return n, limited to the range min_n <= n <= max_n
+    
+    max_n and min_n can be None, which results in no limit
+    """
+    if max_n is None and min_n is None:
+        return n
+    elif max_n is None:
+        return max(min_n, n)
+    elif min_n is None:
+        return min(max_n, n)
+    else:
+        return max(min(max_n, n), min_n)
 
 def match_orders(current_price, buy_price, sell_price):
     match = buy_price is None or sell_price is None or buy_price >= sell_price
-    if buy_price is None and sell_price is None:
-        new_price = current_price
-    elif buy_price is None:
-        new_price = max(sell_price,current_price)
-    elif sell_price is None:
-        new_price = min(buy_price,current_price)
-    elif current_price >= sell_price and current_price <= buy_price:
-        new_price = current_price
-    elif current_price < sell_price:
-        new_price = sell_price
-    else:
-        new_price = buy_price
+    new_price = clamp(current_price, buy_price, sell_price)
     return match, new_price if match else current_price
 
 class TestMatching(unittest.TestCase):
     scenarios = (
                 # Current price, buy limit, sell limit, match, new price
-                (10.0,           None,      None,       True,  10.0),
+                # scenario 1: buy and sell prices, current price below, inside and above the range
+                (8.0,            11.0,       9.0,       True,   9.0),
+                (10.0,           11.0,       9.0,       True,  10.0),
+                (12.0,           11.0,       9.0,       True,  11.0),
+                # scenario 2: only a buy price, current price above and below
                 (1.0,            9.0,       None,       True,   1.0),
                 (10.0,           9.0,       None,       True,   9.0),
+                # scenario 3: only a sell price, current price above and below
                 (11.0,           None,      10.0,       True,  11.0),
-                (10.0,           11.0,       9.0,       True,  10.0),
-                (10.0,           13.0,      11.0,       True,  11.0),
-                (10.0,           9.0,        8.0,       True,   9.0),
+                ( 9.0,           None,      10.0,       True,  10.0),
+                # scenario 4: no buy or sell price
+                (10.0,           None,      None,       True,  10.0),
+                # scenario 5: buy lower than sell, no match
                 (10.0,           10.0,      11.0,      False,  10.0),
                  )
     def do_scenario(self, current_price, buy_price, sell_price, expected_match, expected_new_price):
-        print current_price, buy_price, sell_price, expected_match, expected_new_price
+        description = 'Scenario: %s,%s,%s,%s,%s' % (
+                            current_price, buy_price, sell_price, expected_match, expected_new_price)
         match, new_price = match_orders(current_price, buy_price, sell_price)
-        self.assertEqual(match, expected_match)
-        self.assertEqual(new_price, expected_new_price)
+        self.assertEqual(match, expected_match, description)
+        self.assertEqual(new_price, expected_new_price, description)
     def test_matching_scenarios(self):
         for scenario in self.scenarios:
             self.do_scenario(*scenario)
