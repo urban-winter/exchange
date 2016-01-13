@@ -184,13 +184,16 @@ class Exchange(object):
  
     def order_book(self):
         return self._order_book.orders()
+    
+    def order_matches(self, buy_order, sell_order):
+        return (buy_order.quantity == sell_order.quantity and 
+            self._order_book.client_id_for(buy_order) != self._order_book.client_id_for(sell_order))
      
     def match_orders(self):
         trades = []
         for buy_order in self._order_book.buy_orders():
             for sell_order in self._order_book.sell_orders():
-                if (buy_order.quantity == sell_order.quantity and 
-                    self._order_book.client_id_for(buy_order) != self._order_book.client_id_for(sell_order)):
+                if self.order_matches(buy_order,sell_order):
                     trades.append(Trade(buy=buy_order, sell=sell_order))
                     self._order_book.delete(sell_order)
                     break
