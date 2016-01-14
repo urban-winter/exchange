@@ -15,13 +15,14 @@ class MarketMaker(object):
     ORDER_QUANTITY = 100
 
     def __call__(self, exchange):
-        print 'before', len(exchange.order_book())
         exchange.delete_my_orders()
-        print 'after',len(exchange.order_book())
-        offer_price = exchange.last_trade()[0] * (1 - self.MARGIN/2)
-        bid_price = exchange.last_trade()[0] * (1 + self.MARGIN/2)
-        exchange.submit_order(Order('buy',self.ORDER_QUANTITY,offer_price))
-        exchange.submit_order(Order('sell',self.ORDER_QUANTITY,bid_price))
+        bid, offer = exchange.bid_offer()
+        current_bid = bid if bid else (offer if offer else exchange.last_trade()[0])
+        current_offer = offer if offer else (bid if bid else exchange.last_trade()[0])
+        bid_price = current_bid * (1 - self.MARGIN/2)
+        offer_price = current_offer * (1 + self.MARGIN/2)
+        exchange.submit_order(Order('buy',self.ORDER_QUANTITY,bid_price))
+        exchange.submit_order(Order('sell',self.ORDER_QUANTITY,offer_price))
 
 class TestMarketMaker(unittest.TestCase):
 
@@ -75,12 +76,14 @@ class TestMarketMaker(unittest.TestCase):
         exchange.add_client(MarketMaker())
         # when do_trading is called
         exchange.do_trading()
-        # the order book contains a buy order with price 10.0 + MARGIN/2
-        self.assertEqual(exchange.buy_order_book(),
-                         [Order('buy',100,10.0),Order('buy',100,10.0 * (1 + MarketMaker.MARGIN/2))])
-        
-    
-
+        # the order book contains a buy order with price 10.0 - MARGIN/2
+        # and the original buy at 10.0
+        self.assertEqual(exchange.buy_order_book(), 
+                         [Order('buy',100,10.0),
+                          Order('buy',100,10.0 * (1 - MarketMaker.MARGIN/2))])
+        # and a sell order with price 10 + MARGIN/2
+        self.assertEqual(exchange.sell_order_book(),
+                         [Order('sell',100,10.0 * (1 + MarketMaker.MARGIN/2))])
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
