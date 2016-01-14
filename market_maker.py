@@ -16,9 +16,7 @@ class MarketMaker(object):
 
     def __call__(self, exchange):
         exchange.delete_my_orders()
-        bid, offer = exchange.bid_offer()
-        current_bid = bid if bid else (offer if offer else exchange.last_trade()[0])
-        current_offer = offer if offer else (bid if bid else exchange.last_trade()[0])
+        current_bid, current_offer = exchange.bid_offer()
         bid_price = current_bid * (1 - self.MARGIN/2)
         offer_price = current_offer * (1 + self.MARGIN/2)
         exchange.submit_order(Order('buy',self.ORDER_QUANTITY,bid_price))

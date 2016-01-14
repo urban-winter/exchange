@@ -209,8 +209,16 @@ class Exchange(object):
       
     def bid_offer(self):
         """Return bid, offer price
+        
+        Bid and offer are the prices of the highest current buy and lowest current 
+        sell orders. If there are no orders of one type then the last trade price
+        is returned instead.
         """
-        return self._order_book.highest_buy_order(), self._order_book.lowest_sell_order()
+        bid = self._order_book.highest_buy_order()
+        offer = self._order_book.lowest_sell_order()
+        bid = bid if bid else (offer if offer else self._latest_price)
+        offer = offer if offer else (bid if bid else self._latest_price)
+        return bid, offer
      
     def last_trade(self):
         return self._latest_price, self._latest_volume
@@ -323,8 +331,8 @@ class TestPriceDerivation(unittest.TestCase):
         exchange.submit_order(buy_order)
         exchange.submit_order(sell_order)
         bid, offer = exchange.bid_offer()
-        self.assertEqual(bid, None)
-        self.assertEqual(offer, None)
+        self.assertEqual(bid, exchange.OPEN_DEFAULT_PRICE)
+        self.assertEqual(offer, exchange.OPEN_DEFAULT_PRICE)
     def test_offer_price_only(self):
         exchange = Exchange()
         buy_order = Order('buy',1000)
@@ -332,7 +340,7 @@ class TestPriceDerivation(unittest.TestCase):
         exchange.submit_order(buy_order)
         exchange.submit_order(sell_order)
         bid, offer = exchange.bid_offer()
-        self.assertEqual(bid, None)
+        self.assertEqual(bid, 10.0)
         self.assertEqual(offer, 10.0)
     def test_bid_price_only(self):
         exchange = Exchange()
@@ -342,7 +350,7 @@ class TestPriceDerivation(unittest.TestCase):
         exchange.submit_order(sell_order)
         bid, offer = exchange.bid_offer()
         self.assertEqual(bid, 10.0)
-        self.assertEqual(offer, None)
+        self.assertEqual(offer, 10.0)
     def test_multiple_priced_and_unpriced_buys_and_sells(self):
         orders = (Order('buy',1000,10.0),Order('buy',1000,10.1),Order('buy',1000),
                   Order('sell',1000,11.0),Order('sell',1000,11.1),Order('sell',1000))
