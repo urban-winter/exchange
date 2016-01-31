@@ -7,9 +7,11 @@ eventually the order generation will be a separate component from the algo
 import unittest
 from exchange import Order
 from mock import Mock
+from itertools import islice, ifilter
+import random
 
-def buy_sell_function():
-    return None
+def buy_sell_function():    
+    return random.choice(['buy','sell'])
 
 def order_gen(buy_sell_function=buy_sell_function):
     while True:
@@ -40,6 +42,12 @@ class TestOrderGenerator(unittest.TestCase):
         order = next(orders)
         # then the returned order is a sell order
         self.assertEqual(order.buy_sell, 'sell')
+    def test_buy_sell_is_random(self):
+        # When 100 orders are generated
+        # Then some, but not not all of them are buy order
+        buy_orders = list(ifilter( lambda x: x.buy_sell == 'buy', islice(order_gen(),100)))
+        self.assertTrue(len(buy_orders) > 0)
+        self.assertTrue(len(buy_orders) < 100)
         
 
 if __name__ == "__main__":
