@@ -5,17 +5,19 @@ Execute them on the exchange
 eventually the order generation will be a separate component from the algo
 '''
 import unittest
-from exchange import Order
+from exchange import Order, Exchange
 from mock import Mock
 from itertools import islice, ifilter
 import random
+from market_maker import MarketMaker
+import logging
 
 def buy_sell_function():    
     return random.choice(['buy','sell'])
 
 def order_gen(buy_sell_function=buy_sell_function):
     while True:
-        yield Order(buy_sell=buy_sell_function(),quantity=1000)
+        yield Order(buy_sell=buy_sell_function(),quantity=100)
 
 class TestOrderGenerator(unittest.TestCase):
 
@@ -48,8 +50,38 @@ class TestOrderGenerator(unittest.TestCase):
         buy_orders = list(ifilter( lambda x: x.buy_sell == 'buy', islice(order_gen(),100)))
         self.assertTrue(len(buy_orders) > 0)
         self.assertTrue(len(buy_orders) < 100)
+
+class SimpleAlgo(object):
+    
+    def __init__(self, order_gen):
+        self.order_gen = order_gen
+    def __call__(self, exchange):
+        order = next(self.order_gen())
+        exchange.submit_order(order)
+
+class TestSimpleAlgo(unittest.TestCase):
+    
+    def test_trade_placed_each_time_algo_is_called(self):
+        # Given an algo object
+        exchange = Exchange()
+        algo = SimpleAlgo(order_gen)
+        exchange.add_client(algo)
+        # When it is executed
+        exchange.do_trading()
+        # A trade is added to the order book
+        self.assertEqual(len(exchange.order_book()), 1)
+
+def test_run():
+    exchange = Exchange()
+    exchange.add_client(MarketMaker())
+    exchange.add_client(SimpleAlgo(order_gen))
+    for i in range(100):
+        print 'Round: ', i
+        exchange.do_trading()
+        trades = exchange.match_orders()
+        print exchange.last_trade()
         
 
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()
+    logging.basicConfig(level=logging.DEBUG)
+    test_run()

@@ -16,8 +16,11 @@ exchange.delete_my_orders
 import unittest
 from collections import namedtuple
 from locale import currency
+import logging
 
 Trade = namedtuple('Trade', 'buy,sell,price')
+
+logger = logging.getLogger(__name__)
 
 class Order(object):
     # TODO: consider subclasses for buy and sell
@@ -33,6 +36,16 @@ class Order(object):
 class OrderBook(object):
     def __init__(self):
         self._orders = []
+    def __str__(self):
+        elems = []
+        elems.append('OrderBook')
+        elems.append('Buys')
+        # TODO: helper function for formatting
+        elems.extend([str(order) for order in self.buy_orders()] if len(self.buy_orders()) else ['Empty'])
+        elems.append('Sells')
+        elems.extend([str(order) for order in self.sell_orders()] if len(self.sell_orders()) else ['Empty'])
+        return '\n'.join(elems)
+        
     def add(self, order, client_id):
         """Add an order to the book
         """
@@ -192,19 +205,24 @@ class Exchange(object):
         return (False, None)
      
     def match_orders(self):
+        logger.debug('match_orders called')
         trades = []
         for buy_order in self._order_book.buy_orders():
             for sell_order in self._order_book.sell_orders():
                 orders_match, trade_price = self.order_matches(buy_order,sell_order)
                 if orders_match:
+                    logger.debug('match_orders: Matching orders found')
                     trades.append(Trade(buy=buy_order, sell=sell_order,price=trade_price))
                     self._order_book.delete(sell_order)
                     break
+        logger.debug('match_orders: %s trades matched' % len(trades))
         for trade in trades:
             self._order_book.delete(trade.buy)
         if trades:
             self._latest_price = trades[0].price
             self._latest_volume = trades[0].buy.quantity
+            logger.debug('match_orders: setting _latest_price=%s, _latest_volume=%s' 
+                         % (self._latest_price, self._latest_volume))
         return trades
       
     def bid_offer(self):
@@ -224,10 +242,16 @@ class Exchange(object):
         return self._latest_price, self._latest_volume
      
     def do_trading(self):
+        logger.debug('do_trading called')
+#         logging.debug('initial state of order book: %s', self._order_book)
+        logging.debug('initial state of order book: %s', str(self._order_book))
         for client_id, client in enumerate(self._clients):
             self.current_client = client_id
+            logger.debug('calling client %s' % client_id)
             client(self)
+            logging.debug('order book after client %s: \n%s' % (client_id, str(self._order_book)))
         self.current_client = None
+        # TODO: do_trading should call match_orders. Need to add a test and review other tests.
      
     def add_client(self,client_callable):
         self._clients.append(client_callable)
